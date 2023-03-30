@@ -32,7 +32,7 @@ class client {
 
     //extract numbers from a string
     static String extractNumber(String input){
-        return input.replaceAll("\\D+\s", "");
+        return input.replaceAll("\\D+\\W+", "");
     }
 
     //store extracted number in an array
