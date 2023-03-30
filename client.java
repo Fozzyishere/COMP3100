@@ -40,6 +40,7 @@ class client {
         String returnString = "";
         String[] returnArray = new String[2];
         int returnArrayCount = 0;
+        char lastChar = input.charAt(input.length() - 1);
         for (int i = 0; i < input.length(); i++){
             char inputScan = input.charAt(i);
             if (inputScan > 47 && inputScan < 58){
@@ -50,7 +51,9 @@ class client {
                 returnString = "";
                 returnArrayCount++;
             }
-            returnArray[returnArrayCount] = returnString;
+            if(lastChar != 32){
+                returnArray[returnArrayCount] = returnString;
+            }
         }
         return returnArray;
     }
