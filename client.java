@@ -9,10 +9,17 @@ public class client {
     static BufferedReader din;
 
     public static void main(String args[]) throws Exception {
-        // main var declaration
+        // main var initialisation
         Socket s = new Socket("localhost", 50000);
         din = new BufferedReader(new InputStreamReader(s.getInputStream()));
         dout = new DataOutputStream(s.getOutputStream());
+        String jobID = "";
+        String jobCore = "";
+        String jobMemory = "";
+        String jobDisk = "";
+        String biggestServer = "";
+        int serverCount = 0;
+        
 
         // print server connect
         System.out.println("java server started, connection is on!");
@@ -25,7 +32,33 @@ public class client {
         sendToServer("AUTH " + System.getProperty("user.name"));
         recievedFromServer();
 
+
+        //check serverComm for last server message
+        System.out.println("last server message before doing job loop is: " + serverComm);
+
         // loop
+        while(!serverComm.equals("NONE")){
+            //send REDY
+            sendToServer("REDY");
+            recievedFromServer();
+
+            //check if server message is NONE after doing jobs
+            if(serverComm.equals("NONE")){
+                //break out of loop and close client
+                break;  
+            }
+
+            //spit JOB message
+            //use split() instead of replaceAll() in old client_old.java
+            //theses will be used later when sending GETS to server
+            String[] jobStrings = serverComm.split(" ");
+            jobID = jobStrings[2];
+            jobCore = jobStrings[4];
+            jobMemory = jobStrings[5];
+            jobDisk = jobStrings[6];
+
+            
+        }
 
         dout.close();
         s.close();
