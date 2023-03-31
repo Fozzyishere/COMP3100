@@ -56,7 +56,7 @@ public class client {
     }
 
     //send message to server
-    static void sendMessage(String input) throws IOException{
+    static void sendToServer(String input) throws IOException{
         input = input +"\n";
         dout.write(input.getBytes());
         System.out.println("sent to server: " + input);
