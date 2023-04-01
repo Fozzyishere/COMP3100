@@ -7,81 +7,86 @@ public class client {
     static DataOutputStream dout;
     static BufferedReader din;
 
-    public static void main(String[] args) throws UnknownHostException, IOException {
-        // socket, input and output setup
+    public static void main(String[] args) throws IOException {
+        //initialise socket, input and output streams
         Socket s = new Socket("localhost", 50000);
-        din = new BufferedReader(new InputStreamReader(s.getInputStream()));
         dout = new DataOutputStream(s.getOutputStream());
+        din = new BufferedReader(new InputStreamReader(s.getInputStream()));
 
-        // send HELO
+        // Send HELO
         sendToServer("HELO");
         receivedFromServer();
 
-        // send AUTH
+        // Send AUTH
         sendToServer("AUTH " + System.getProperty("user.name"));
         receivedFromServer();
 
-        // send REDY
+        // Send REDY
         sendToServer("REDY");
         receivedFromServer();
 
-        // if jobs to schedule available
+        // if there are jobs available for schedule
         if (!serverInput.equals("NONE")) {
-            String initialJob = serverInput; // save initial job for LRR scheduling
+            String initialJob = serverInput;  //save initial job for LRR scheduling
 
-            // Store data from either JOBN, JOBP or JCPL
-            String[] jobParams = serverInput.split(" ");
-            int jobCores = Integer.parseInt(jobParams[4]);
-            int jobMemory = Integer.parseInt(jobParams[5]);
-            int jobDisk = Integer.parseInt(jobParams[6]);
+            // store parameters from command (JOBN, JOBP, JCPL etc.)
+            String[] params = serverInput.split(" ");
+            int jobCore = Integer.parseInt(params[params.length - 3]);
+            int jobMemory = Integer.parseInt(params[params.length - 2]);
+            int jobDisk = Integer.parseInt(params[params.length - 1]);
 
-            // send GETS
-            sendToServer("GETS Capable " + jobCores + " " + jobMemory + " " + jobDisk);
+            // Send GETS Capable core memory disk
+            sendToServer("GETS Capable " + jobCore + " " + jobMemory + " " + jobDisk);
             receivedFromServer();
-            String[] DATAParams = serverInput.split(" "); // get nRecs for the loop to get server
-            int nRecs = Integer.parseInt(DATAParams[1]);
 
-            // send OK
-            sendToServer("OK"); // not execute receive method because that will be used in later loop
+            //store nRecs so we can store available server's data
+            String[] DATAparams = serverInput.split(" ");
+            int nRecs = Integer.parseInt(DATAparams[1]);
+
+            // Send OK
+            sendToServer("OK");
 
             String biggestServer = "";
-            int biggestCoreCount = 0;
+            int biggestSeverCoreCount = 0;
             ArrayList<Integer> jobServerIDs = new ArrayList<Integer>();
 
-            // loop to store server data
+            // loop to store server's data
             for (int i = 0; i < nRecs; i++) {
                 receivedFromServer();
-                String[] serverParams = serverInput.split(" ");
-                int serverCoreCount = Integer.parseInt(serverParams[4]);
+                String[] serverInfo = serverInput.split(" ");
+                int serverCore = Integer.parseInt(serverInfo[4]);
 
-                // find biggest server
-                if (serverCoreCount > biggestCoreCount) {
-                    biggestCoreCount = serverCoreCount;
-                    biggestServer = serverParams[0];
+                // Find the biggest server
+                //TODO: untangle this else if codeblock
+                if (serverCore > biggestSeverCoreCount) {
+                    biggestSeverCoreCount = serverCore;
+                    biggestServer = serverInfo[0];
                     jobServerIDs = new ArrayList<Integer>();
-                    jobServerIDs.add(Integer.parseInt(serverParams[1]));
-                }
-                if (serverCoreCount < biggestCoreCount) {
+                    jobServerIDs.add(Integer.parseInt(serverInfo[1]));
+                } else if (serverCore < biggestSeverCoreCount) {
                     continue;
+                } else {
+                    if (serverInfo[0].equals(biggestServer)) {
+                        // Add the server ID to the list
+                        jobServerIDs.add(Integer.parseInt(serverInfo[1]));
+                    } else {
+                        continue;
+                    }
                 }
-                if (serverParams[0].equals(biggestServer)) {
-                    jobServerIDs.add(Integer.parseInt(serverParams[1]));
-                }
-                continue;
             }
-            // send OK
+
+            // Send OK
             sendToServer("OK");
             receivedFromServer();
 
-            int index = 0; // create index for LRR loop
 
-            serverInput = initialJob; // change input to original job for LRR loop
-
+            int index = 0;
+            serverInput = initialJob;   //change input to intitial job for LRR loop
             while (!serverInput.equals("NONE")) {
-                jobParams = serverInput.split(" ");
-                int jobID = Integer.parseInt(jobParams[2]);
+                params = serverInput.split(" ");
+                Integer jobID = Integer.parseInt(params[2]);
 
-                // if message contains JOBN, schedule job
+                // If the message contains JOBN, schedule job
                 if (serverInput.contains("JOBN")) {
                     sendToServer("SCHD " + jobID + " " + biggestServer + " " + jobServerIDs.get(index));
                     index++;
@@ -92,23 +97,21 @@ public class client {
                     receivedFromServer();
                 }
 
-                // send REDY
+                // Send REDY
                 sendToServer("REDY");
                 receivedFromServer();
             }
         }
-        // send QUIT
-        sendToServer("QUIT");
-        dout.flush();
-        receivedFromServer();
-        System.out.println("closing connection. Go to sleep.");
 
-        // closing and tidy up
-        dout.close();
+        // Send QUIT
+        sendToServer("QUIT");
+        receivedFromServer();
+
+        // Close the socket and streams
         din.close();
+        dout.close();
         s.close();
     }
-
     // print an store received message from server
     static void receivedFromServer() throws IOException {
         serverInput = din.readLine();
