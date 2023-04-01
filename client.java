@@ -13,17 +13,7 @@ public class client {
         dout = new DataOutputStream(s.getOutputStream());
         din = new BufferedReader(new InputStreamReader(s.getInputStream()));
 
-        // Send HELO
-        sendToServer("HELO");
-        receivedFromServer();
-
-        // Send AUTH
-        sendToServer("AUTH " + System.getProperty("user.name"));
-        receivedFromServer();
-
-        // Send REDY
-        sendToServer("REDY");
-        receivedFromServer();
+        handshake();
 
         // if there are jobs available for schedule
         if (!serverInput.equals("NONE")) {
@@ -111,6 +101,21 @@ public class client {
         din.close();
         dout.close();
         s.close();
+    }
+
+    //start handshaking with ds-client
+    static void handshake() throws IOException{
+        // Send HELO
+        sendToServer("HELO");
+        receivedFromServer();
+
+        // Send AUTH
+        sendToServer("AUTH " + System.getProperty("user.name"));
+        receivedFromServer();
+
+        // Send REDY
+        sendToServer("REDY");
+        receivedFromServer();
     }
     // print an store received message from server
     static void receivedFromServer() throws IOException {
