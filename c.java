@@ -3,28 +3,11 @@ import java.io.*;
 import java.util.*;
 
 public class c {
-
     static String serverInput;
     static DataOutputStream dout;
     static BufferedReader din;
 
     public static void main(String[] args) throws UnknownHostException, IOException {
-        // local variables
-        String initialJob = ""; // store initial JOB command
-        String[] jobParams; //job command parameters
-        String jobID = ""; // store JOB info
-        String jobCore = ""; // store JOB info
-        String jobMemory = ""; // store JOB info
-        String jobDisk = ""; // store JOB info
-        Integer nRecs = 0; // store nRecs from DATA command
-        String biggestServer = ""; // store name of biggest server
-        Integer biggestCoreCount = 0; // store biggest server's core count
-        ArrayList <String> postDATAServerIDs = new ArrayList<String>(); //store serverID received after DATA command
-        Integer serverCore = 0; //store server core for comparison
-        Integer index = 0;  //for LRR
-
-
-
         // socket, input and output setup
         Socket s = new Socket("localhost", 50000);
         din = new BufferedReader(new InputStreamReader(s.getInputStream()));
@@ -40,86 +23,89 @@ public class c {
 
         // send REDY
         sendToServer("REDY");
-        receivedFromServer(); // received either JOBN, JCPL, NONE
+        receivedFromServer();
 
-        // if server said there're jobs to schedule
-        if (serverInput.contains("NONE")) {
-            initialJob = serverInput;
+        // if jobs to schedule available
+        if (!serverInput.equals("NONE")) {
+            String initialJob = serverInput; // save initial job for LRR scheduling
 
-            // storing JOB data
-            jobParams= serverInput.split(" ");
-            jobID = jobParams[2];
-            jobCore = jobParams[4];
-            jobMemory = jobParams[5];
-            jobDisk = jobParams[6];
+            // Store data from either JOBN, JOBP or JCPL
+            String[] jobParams = serverInput.split(" ");
+            int jobCores = Integer.parseInt(jobParams[4]);
+            int jobMemory = Integer.parseInt(jobParams[5]);
+            int jobDisk = Integer.parseInt(jobParams[6]);
 
             // send GETS
-            sendToServer("GETS Capable " + jobCore + " " + jobMemory + " " + jobDisk);
+            sendToServer("GETS Capable " + jobCores + " " + jobMemory + " " + jobDisk);
             receivedFromServer();
+            String[] DATAParams = serverInput.split(" "); // get nRecs for the loop to get server
+            int nRecs = Integer.parseInt(DATAParams[1]);
 
-            // get data from DATA command
-            String[] DATAParams = serverInput.split(" ");
-            nRecs = Integer.parseInt(DATAParams[1]);
+            // send OK
+            sendToServer("OK"); // not execute receive method because that will be used in later loop
 
+            String biggestServer = "";
+            int biggestCoreCount = 0;
+            ArrayList<Integer> jobServerIDs = new ArrayList<Integer>();
+
+            // loop to store server data
+            for (int i = 0; i < nRecs; i++) {
+                receivedFromServer();
+                String[] serverParams = serverInput.split(" ");
+                int serverCoreCount = Integer.parseInt(serverParams[4]);
+
+                // find biggest server
+                if (serverCoreCount > biggestCoreCount) {
+                    biggestCoreCount = serverCoreCount;
+                    biggestServer = serverParams[0];
+                    jobServerIDs = new ArrayList<Integer>();
+                    jobServerIDs.add(Integer.parseInt(serverParams[1]));
+                }
+                if (serverCoreCount < biggestCoreCount) {
+                    continue;
+                }
+                if (serverParams[0].equals(biggestServer)) {
+                    jobServerIDs.add(Integer.parseInt(serverParams[1]));
+                }
+                continue;
+            }
             // send OK
             sendToServer("OK");
             receivedFromServer();
 
-            //loop through server info received
-            for(int i = 0; i < nRecs; i++){
-                receivedFromServer();
-                String[] postDATAServerParam = serverInput.split(" ");
-                serverCore = Integer.parseInt(postDATAServerParam[4]);
+            int index = 0; // create index for LRR loop
 
-                //find the biggest server
-                if(serverCore > biggestCoreCount){
-                    biggestCoreCount = serverCore;
-                    biggestServer = postDATAServerParam[0];
-                    postDATAServerIDs.add(postDATAServerParam[1]);
-                }
-                if(postDATAServerParam[0].equals(biggestServer)){
-                    postDATAServerIDs.add(postDATAServerParam[1]);
-                }
-                continue;
-            }
-        }
+            serverInput = initialJob; // change input to original job for LRR loop
 
+            while (!serverInput.equals("NONE")) {
+                jobParams = serverInput.split(" ");
+                int jobID = Integer.parseInt(jobParams[2]);
 
-        //send OK
-        sendToServer("OK");
-        receivedFromServer();   //should be .
+                // if message contains JOBN, schedule job
+                if (serverInput.contains("JOBN")) {
+                    sendToServer("SCHD " + jobID + " " + biggestServer + " " + jobServerIDs.get(index));
+                    index++;
 
-        /*implement LRR*/
-
-        //while server not sending NONE
-        while(!serverInput.equals("NONE")){
-            jobParams = serverInput.split(" ");
-            jobID = jobParams[2];
-
-            //if command is JOBN
-            if(serverInput.contains("JOBN")){
-                sendToServer("SCHD " + jobID + " " + biggestServer + " " + postDATAServerIDs.get(index));
-                index++;
-
-                //LRR
-                if(postDATAServerIDs.size() == index){
-                    index = 0;
+                    if (jobServerIDs.size() == index) {
+                        index = 0;
+                    }
+                    receivedFromServer();
                 }
 
-                //should receive OK
+                // send REDY
+                sendToServer("REDY");
                 receivedFromServer();
             }
-            //send REDY, receive either JOBN, JCPL or NONE
-            sendToServer("REDY");
-            receivedFromServer();
         }
         // send QUIT
         sendToServer("QUIT");
         dout.flush();
-        serverInput = din.readLine();
+        receivedFromServer();
         System.out.println("closing connection. Go to sleep.");
+
         // closing and tidy up
         dout.close();
+        din.close();
         s.close();
     }
 
