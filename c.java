@@ -11,6 +11,7 @@ public class c {
     public static void main(String[] args) throws UnknownHostException, IOException {
         // local variables
         String initialJob = ""; // store initial JOB command
+        String[] jobParams; //job command parameters
         String jobID = ""; // store JOB info
         String jobCore = ""; // store JOB info
         String jobMemory = ""; // store JOB info
@@ -20,6 +21,7 @@ public class c {
         Integer biggestCoreCount = 0; // store biggest server's core count
         ArrayList <String> postDATAServerIDs = new ArrayList<String>(); //store serverID received after DATA command
         Integer serverCore = 0; //store server core for comparison
+        Integer index = 0;  //for LRR
 
 
 
@@ -45,7 +47,7 @@ public class c {
             initialJob = serverInput;
 
             // storing JOB data
-            String[] jobParams = serverInput.split(" ");
+            jobParams= serverInput.split(" ");
             jobID = jobParams[2];
             jobCore = jobParams[4];
             jobMemory = jobParams[5];
@@ -85,7 +87,40 @@ public class c {
 
         //send OK
         sendToServer("OK");
-        receivedFromServer();
+        receivedFromServer();   //should be .
+
+        /*implement LRR*/
+
+        //while server not sending NONE
+        while(!serverInput.equals("NONE")){
+            jobParams = serverInput.split(" ");
+            jobID = jobParams[2];
+
+            //if command is JOBN
+            if(serverInput.contains("JOBN")){
+                sendToServer("SCHD " + jobID + " " + biggestServer + " " + postDATAServerIDs.get(index));
+                index++;
+
+                //LRR
+                if(postDATAServerIDs.size() == index){
+                    index = 0;
+                }
+
+                //should receive OK
+                receivedFromServer();
+            }
+            //send REDY, receive either JOBN, JCPL or NONE
+            sendToServer("REDY");
+            receivedFromServer();
+        }
+        // send QUIT
+        sendToServer("QUIT");
+        dout.flush();
+        serverInput = din.readLine();
+        System.out.println("closing connection. Go to sleep.");
+        // closing and tidy up
+        dout.close();
+        s.close();
     }
 
     // print an store received message from server
