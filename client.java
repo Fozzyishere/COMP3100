@@ -2,7 +2,7 @@ import java.net.*;
 import java.io.*;
 import java.util.*;
 
-public class c {
+public class client {
     static String serverInput;
     static DataOutputStream dout;
     static BufferedReader din;
