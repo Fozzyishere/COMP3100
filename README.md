@@ -2,6 +2,7 @@
 ## Client location
 the name of the client is client.java, inside the src folder
 
-##Student Info
+## Student Info
 Quoc Huy Pham
-46293175
+
+\46293175
