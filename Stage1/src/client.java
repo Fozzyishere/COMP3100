@@ -17,7 +17,7 @@ public class client {
 
         // if there are jobs available for schedule
         if (!serverInput.equals("NONE")) {
-            String initialJob = serverInput;  //save initial job for LRR scheduling
+            String initialJob = serverInput;  //save initial job for scheduling
 
             // store parameters from command (JOBN, JOBP, JCPL etc.)
             String[] params = serverInput.split(" ");
