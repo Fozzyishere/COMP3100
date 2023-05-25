@@ -12,7 +12,9 @@ public class client {
     public static void main(String[] args) throws IOException {
         setSocket(s, dout, din);
         handshake();
-
+        scheduling();
+        quit();
+        closeConnection(din, dout, s);
     }
 
     // setting up socket , input and output streams
