@@ -12,8 +12,10 @@ public class client {
     // main method
     public static void main(String[] args) throws IOException {
         client CLIENT = new client("localhost", 50000);
-        client.handshake();
-        client.execAlgor();
+        CLIENT.handshake();
+        CLIENT.execAlgor();
+        CLIENT.quit();
+        CLIENT.close();
     }
 
     // init connection to server
@@ -36,20 +38,6 @@ public class client {
         // Send REDY
         sendToServer("REDY");
         receivedFromServer();
-    }
-
-    // print an store received message from server
-    private static void receivedFromServer() throws IOException {
-        serverInput = din.readLine();
-        System.out.println("server said: " + serverInput);
-    }
-
-    // send message to server
-    private static void sendToServer(String input) throws IOException {
-        input = input + "\n";
-        dout.write(input.getBytes());
-        System.out.println("sent to server: " + input);
-        dout.flush();
     }
 
     private static void execAlgor() throws IOException {
@@ -106,9 +94,8 @@ public class client {
             sendToServer("OK");
             receivedFromServer();
 
-
             int index = 0;
-            serverInput = initialJob;   //change input to intitial job for LRR loop
+            serverInput = initialJob; // change input to intitial job for LRR loop
             while (!serverInput.equals("NONE")) {
                 params = serverInput.split(" ");
                 Integer jobID = Integer.parseInt(params[2]);
@@ -129,17 +116,31 @@ public class client {
                 receivedFromServer();
             }
         }
-     
-        
-        // Send QUIT
-        sendToServer("QUIT");
-        receivedFromServer();
+    }
 
+    private static void quit() throws IOException{
+                // Send QUIT
+                sendToServer("QUIT");
+                receivedFromServer();
+    }
+
+    private static void close() throws IOException {
         // Close the socket and streams
         din.close();
         dout.close();
         s.close();
+    }
+    // print an store received message from server
+    private static void receivedFromServer() throws IOException {
+        serverInput = din.readLine();
+        System.out.println("server said: " + serverInput);
+    }
 
-
+    // send message to server
+    private static void sendToServer(String input) throws IOException {
+        input = input + "\n";
+        dout.write(input.getBytes());
+        System.out.println("sent to server: " + input);
+        dout.flush();
     }
 }
