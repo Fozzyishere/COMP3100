@@ -26,7 +26,7 @@ public class client {
     }
 
     // start handshaking with ds-client
-    static void handshake() throws IOException {
+    private void handshake() throws IOException {
         // Send HELO
         sendToServer("HELO");
         receivedFromServer();
@@ -40,7 +40,7 @@ public class client {
         receivedFromServer();
     }
 
-    private static void execAlgor() throws IOException {
+    private void execAlgor() throws IOException {
         if (!serverInput.equals("NONE")) {
             String initialJob = serverInput; // save initial job for scheduling
 
@@ -118,26 +118,26 @@ public class client {
         }
     }
 
-    private static void quit() throws IOException{
+    private void quit() throws IOException{
                 // Send QUIT
                 sendToServer("QUIT");
                 receivedFromServer();
     }
 
-    private static void close() throws IOException {
+    private void close() throws IOException {
         // Close the socket and streams
         din.close();
         dout.close();
         s.close();
     }
     // print an store received message from server
-    private static void receivedFromServer() throws IOException {
+    private void receivedFromServer() throws IOException {
         serverInput = din.readLine();
         System.out.println("server said: " + serverInput);
     }
 
     // send message to server
-    private static void sendToServer(String input) throws IOException {
+    private void sendToServer(String input) throws IOException {
         input = input + "\n";
         dout.write(input.getBytes());
         System.out.println("sent to server: " + input);
