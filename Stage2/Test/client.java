@@ -83,7 +83,10 @@ public class client {
         sendToServer("OK");
     }
 
+
     private void execAlgor() throws Exception {
+
+        /*LEGACY LRR CODEBLOCK*/
         // loop to store server's data
         for (int i = 0; i < nRecs; i++) {
             receivedFromServer();
