@@ -15,23 +15,32 @@ public class client {
     private static int jobCore;
     private static int jobMemory;
     private static int jobDisk;
+    private static int jobID;
+    private static int submitTime;
+    private static int estRuntime;
 
-    // store other data (server info, other vars, etc.)
-    private static int nRecs;
+    // store server data
+    private static int nRecs = 0;
     private static ArrayList<server> serverList = new ArrayList<server>();
+    private static String SCHDSeverType = "";
+    private static int SCHDServerID;
 
     // main method
     public static void main(String[] args) throws Exception {
         client CLIENT = new client("localhost", 50000);
         CLIENT.handshake();
-        if (!serverInput.equals("NONE")) {
-            CLIENT.storeParams();
-            CLIENT.getCapable();
-            CLIENT.filterServers(jobCore, jobMemory, jobDisk);
-            CLIENT.execAlgor();
-        }
+        CLIENT.run();
         CLIENT.quit();
         CLIENT.close();
+    }
+
+    private void run() throws Exception {
+        if (!serverInput.equals("NONE")) {
+            storeParams();
+            getCapable();
+            filterServers();
+            schedule();
+        }
     }
 
     // init connection to server
@@ -60,11 +69,16 @@ public class client {
         // save initial job for scheduling
         initialJob = serverInput;
         // store parameters from command (JOBN, JOBP, JCPL etc.)
-        String[] params;
-        params = serverInput.split(" ");
-        jobCore = Integer.parseInt(params[4]);
-        jobMemory = Integer.parseInt(params[5]);
-        jobDisk = Integer.parseInt(params[6]);
+        if (initialJob.contains("JOBN")) {
+            String[] jobParams;
+            jobParams = serverInput.split(" ");
+            jobCore = Integer.parseInt(jobParams[4]);
+            jobMemory = Integer.parseInt(jobParams[5]);
+            jobDisk = Integer.parseInt(jobParams[6]);
+            jobID = Integer.parseInt(jobParams[2]);
+            submitTime = Integer.parseInt(jobParams[1]);
+            estRuntime = Integer.parseInt(jobParams[3]);
+        }
     }
 
     private void getCapable() throws Exception {
@@ -75,45 +89,65 @@ public class client {
         DATAParams = serverInput.split(" ");
         nRecs = Integer.parseInt(DATAParams[1]);
         sendToServer("OK");
-
         // loop to store server data
         for (int i = 0; i < nRecs; i++) {
             receivedFromServer();
             server currServer = new server(serverInput);
             serverList.add(currServer);
         }
+        sendToServer("OK");
+        receivedFromServer();
+        server server = filterServers();
+        SCHDSeverType = server.getServerType();
+        SCHDServerID = server.getServerID();
+        serverList.clear();
     }
-    
 
-    private server filterServers(int jobCore, int jobMemory, int jobDisk) throws Exception {
-        /*
-         * filtering parameters:
-         * 1. sufficient resources (handled by GETS Capable)
-         * 2. No running job and wating job existing at the same time
-         * 3. fitness value (f) is smallest
-         * 
-         * fitness value can be calculated by: required/capable
-         * required can be acquired through JOBN
-         * capable can be accquired through GETS
-         * 
-         */
+    private server filterServers() throws Exception {
+        float minFitness = Float.MAX_VALUE;
+        int minCoreCount = Integer.MAX_VALUE;
+        server returnServer = null;
 
-        server returnServer = null;;
-        float prevFitness = Float.MAX_VALUE;
-        for (int i = 0; i < nRecs; i++) {
-            returnServer = serverList.get(i);
-            float currFitness = (float) jobCore/serverList.get(i).getServerCore();
-            if(returnServer.getWaitingJob() != returnServer.getRunningJob() && currFitness < prevFitness){
-                returnServer = serverList.get(i);
-                prevFitness = currFitness;
+        // loop through serverlist to filter invalid servers
+        for (server currServer : serverList) {
+            // calculate fitness
+            float minCore = (float) currServer.getServerCore() / jobCore;
+            float minMemory = (float) currServer.getServerMemory() / jobMemory;
+            float minDisk = (float) currServer.getServerDisk() / jobDisk;
+            float fitness = minCore + minMemory + minDisk;
+
+            if (fitness < minFitness) {
+                minFitness = fitness;
+                minCoreCount = currServer.getServerCore();
+                returnServer = currServer;
+            } else if (fitness == minFitness) {
+                if (currServer.getServerCore() < minCoreCount) {
+                    minCoreCount = currServer.getServerCore();
+                    returnServer = currServer;
+                } else if (currServer.getServerCore() == minCoreCount) {
+                    if (currServer.getServerID() < returnServer.getServerID()) {
+                        returnServer = currServer;
+                    }
+                }
             }
         }
         return returnServer;
     }
 
     // do the algorithm
-    private void execAlgor() throws Exception {
-
+    private void schedule() throws Exception {
+        sendToServer("OK");
+        receivedFromServer();
+        serverInput = initialJob;
+        while (!serverInput.equals("NONE")) {
+            if (serverInput.contains("JOBN")) {
+                sendToServer(
+                        "SCHD " + jobID + " " + SCHDSeverType + " " + SCHDServerID);
+                receivedFromServer();
+            }
+            sendToServer("REDY");
+            receivedFromServer();
+        }
     }
 
     private void quit() throws Exception {
@@ -151,7 +185,7 @@ class server {
     private int serverCore;
     private int serverMemory;
     private int serverDisk;
-    private int serverState;
+    private String serverState;
     private int waitingJob;
     private int runningJob;
 
@@ -162,7 +196,7 @@ class server {
         this.serverCore = Integer.parseInt(input[4]);
         this.serverMemory = Integer.parseInt(input[5]);
         this.serverDisk = Integer.parseInt(input[6]);
-        this.serverState = Integer.parseInt(input[2]);
+        this.serverState = (input[2]);
         this.waitingJob = Integer.parseInt(input[7]);
         this.runningJob = Integer.parseInt(input[8]);
     }
@@ -188,12 +222,14 @@ class server {
         return serverDisk;
     }
 
-    public int getServerState() throws Exception {
+    public String getServerState() throws Exception {
         return serverState;
     }
+
     public int getWaitingJob() throws Exception {
         return waitingJob;
     }
+
     public int getRunningJob() throws Exception {
         return runningJob;
     }
