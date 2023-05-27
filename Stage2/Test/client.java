@@ -15,14 +15,10 @@ public class client {
     private static int jobCore;
     private static int jobMemory;
     private static int jobDisk;
-    private static String[] params;
-    private static String[] DATAParams;
 
-    // store other data
+    // store other data (server info, other vars, etc.)
     private static int nRecs;
-    private static ArrayList<Integer> jobServerIDs = new ArrayList<Integer>();
-    private static String biggestServer = "";
-    private static int biggestSeverCoreCount = 0;
+    private static ArrayList<server> serverList = new ArrayList<server>();
 
     // main method
     public static void main(String[] args) throws Exception {
@@ -30,7 +26,8 @@ public class client {
         CLIENT.handshake();
         if (!serverInput.equals("NONE")) {
             CLIENT.storeParams();
-            CLIENT.getnRecs();
+            CLIENT.getCapable();
+            CLIENT.filterServers(jobCore, jobMemory, jobDisk);
             CLIENT.execAlgor();
         }
         CLIENT.quit();
@@ -63,20 +60,58 @@ public class client {
         // save initial job for scheduling
         initialJob = serverInput;
         // store parameters from command (JOBN, JOBP, JCPL etc.)
+        String[] params;
         params = serverInput.split(" ");
-        jobCore = Integer.parseInt(params[params.length - 3]);
-        jobMemory = Integer.parseInt(params[params.length - 2]);
-        jobDisk = Integer.parseInt(params[params.length - 1]);
+        jobCore = Integer.parseInt(params[4]);
+        jobMemory = Integer.parseInt(params[5]);
+        jobDisk = Integer.parseInt(params[6]);
     }
 
-    private void getnRecs() throws Exception {
+    private void getCapable() throws Exception {
+        // send get capable to get server info
+        sendToServer("GETS Capable " + jobCore + " " + jobMemory + " " + jobDisk);
+        receivedFromServer();
+        String[] DATAParams;
+        DATAParams = serverInput.split(" ");
+        nRecs = Integer.parseInt(DATAParams[1]);
+        sendToServer("OK");
 
+        // loop to store server data
+        for (int i = 0; i < nRecs; i++) {
+            receivedFromServer();
+            server currServer = new server(serverInput);
+            serverList.add(currServer);
+        }
     }
-
-    private void getnRecsCapable() throws Exception{
     
+
+    private server filterServers(int jobCore, int jobMemory, int jobDisk) throws Exception {
+        /*
+         * filtering parameters:
+         * 1. sufficient resources (handled by GETS Capable)
+         * 2. No running job and wating job existing at the same time
+         * 3. fitness value (f) is smallest
+         * 
+         * fitness value can be calculated by: required/capable
+         * required can be acquired through JOBN
+         * capable can be accquired through GETS
+         * 
+         */
+
+        server returnServer = null;;
+        float prevFitness = Float.MAX_VALUE;
+        for (int i = 0; i < nRecs; i++) {
+            returnServer = serverList.get(i);
+            float currFitness = (float) jobCore/serverList.get(i).getServerCore();
+            if(returnServer.getWaitingJob() != returnServer.getRunningJob() && currFitness < prevFitness){
+                returnServer = serverList.get(i);
+                prevFitness = currFitness;
+            }
+        }
+        return returnServer;
     }
 
+    // do the algorithm
     private void execAlgor() throws Exception {
 
     }
@@ -109,98 +144,57 @@ public class client {
     }
 }
 
-
-
-
-
-
 // Class to help manage server info easier
-class server{
+class server {
     private String serverType;
     private int serverID;
     private int serverCore;
+    private int serverMemory;
+    private int serverDisk;
+    private int serverState;
+    private int waitingJob;
+    private int runningJob;
 
-    public server(String i) throws Exception{
+    public server(String i) throws Exception {
         String[] input = i.split(" ");
         this.serverType = input[0];
         this.serverID = Integer.parseInt(input[1]);
         this.serverCore = Integer.parseInt(input[4]);
+        this.serverMemory = Integer.parseInt(input[5]);
+        this.serverDisk = Integer.parseInt(input[6]);
+        this.serverState = Integer.parseInt(input[2]);
+        this.waitingJob = Integer.parseInt(input[7]);
+        this.runningJob = Integer.parseInt(input[8]);
     }
 
     /* Getters */
-    public String getServerType() throws Exception{
+    public String getServerType() throws Exception {
         return serverType;
     }
 
-    public int getServerCore() throws Exception{
+    public int getServerCore() throws Exception {
         return serverCore;
     }
 
-    public int getServerID() throws Exception{
+    public int getServerID() throws Exception {
         return serverID;
     }
+
+    public int getServerMemory() throws Exception {
+        return serverMemory;
+    }
+
+    public int getServerDisk() throws Exception {
+        return serverDisk;
+    }
+
+    public int getServerState() throws Exception {
+        return serverState;
+    }
+    public int getWaitingJob() throws Exception {
+        return waitingJob;
+    }
+    public int getRunningJob() throws Exception {
+        return runningJob;
+    }
 }
-
-
-
-
-
-
-
-
-
-
-/* LEGACY LRR CODEBLOCK */
-/*
- * // loop to store server's data
- * for (int i = 0; i < nRecs; i++) {
- * receivedFromServer();
- * String[] serverInfo = serverInput.split(" ");
- * int serverCore = Integer.parseInt(serverInfo[4]);
- * 
- * // Find the biggest server
- * // TODO: untangle this else if codeblock
- * if (serverCore > biggestSeverCoreCount) {
- * biggestSeverCoreCount = serverCore;
- * biggestServer = serverInfo[0];
- * jobServerIDs = new ArrayList<Integer>();
- * jobServerIDs.add(Integer.parseInt(serverInfo[1]));
- * } else if (serverCore < biggestSeverCoreCount) {
- * continue;
- * } else {
- * if (serverInfo[0].equals(biggestServer)) {
- * // Add the server ID to the list
- * jobServerIDs.add(Integer.parseInt(serverInfo[1]));
- * } else {
- * continue;
- * }
- * }
- * }
- * 
- * // Send OK
- * sendToServer("OK");
- * receivedFromServer();
- * 
- * int index = 0;
- * serverInput = initialJob; // change input to intitial job for LRR loop
- * while (!serverInput.equals("NONE")) {
- * params = serverInput.split(" ");
- * Integer jobID = Integer.parseInt(params[2]);
- * 
- * // If the message contains JOBN, schedule job
- * if (serverInput.contains("JOBN")) {
- * sendToServer("SCHD " + jobID + " " + biggestServer + " " +
- * jobServerIDs.get(index));
- * index++;
- * 
- * if (jobServerIDs.size() == index) {
- * index = 0;
- * }
- * receivedFromServer();
- * }
- * 
- * // Send REDY
- * sendToServer("REDY");
- * receivedFromServer();
- * }
- */
