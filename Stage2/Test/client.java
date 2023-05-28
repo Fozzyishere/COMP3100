@@ -112,6 +112,7 @@ public class client {
         // send get capable to get server info
         sendToServer("GETS Capable " + jobCore + " " + jobMemory + " " + jobDisk);
         receivedFromServer();
+        receivedFromServer();
         String[] DATAParams = serverInput.split(" ");
         System.out.println("before storing nRecs " + serverInput);
         nRecs = Integer.parseInt(DATAParams[1]);
