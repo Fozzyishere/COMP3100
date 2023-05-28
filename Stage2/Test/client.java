@@ -145,20 +145,17 @@ public class client {
             float minMemory = (float) currServer.getServerMemory() / jobMemory;
             float minDisk = (float) currServer.getServerDisk() / jobDisk;
             float fitness = minCore + minMemory + minDisk;
-            // fitness < 1 means server is invalid
-            if (fitness >= 1) {
-                if (fitness < minFitness) {
-                    minFitness = fitness;
+            if (fitness < minFitness) {
+                minFitness = fitness;
+                minCoreCount = currServer.getServerCore();
+                returnServer = currServer;
+            } else if (fitness == minFitness) {
+                if (currServer.getServerCore() < minCoreCount) {
                     minCoreCount = currServer.getServerCore();
                     returnServer = currServer;
-                } else if (fitness == minFitness) {
-                    if (currServer.getServerCore() < minCoreCount) {
-                        minCoreCount = currServer.getServerCore();
-                        returnServer = currServer;
-                    } else if (currServer.getServerCore() == minCoreCount
-                            && currServer.getServerID() < returnServer.getServerID()) {
-                        returnServer = currServer;
-                    }
+                } else if (currServer.getServerCore() == minCoreCount
+                        && currServer.getServerID() < returnServer.getServerID()) {
+                    returnServer = currServer;
                 }
             }
         }
