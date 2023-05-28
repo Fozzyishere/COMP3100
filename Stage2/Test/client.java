@@ -30,6 +30,7 @@ public class client {
         CLIENT.quit();
         CLIENT.close();
     }
+
     // do the scheduling
     private void schedule() throws Exception {
         serverInput = initialJob;
