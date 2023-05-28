@@ -36,7 +36,7 @@
     "ds-sample-config01.xml": 873,
     "ds-sample-config02.xml": 6328,
     "ds-sample-config03.xml": 6185,
-    "ds-sample-config04.xml": 3535533
+    "ds-sample-config04.xml": 10716770
   },
   "Resource utilisation": {
     "config100-long-high.xml": 83.65,
@@ -75,7 +75,7 @@
     "ds-sample-config01.xml": 100.0,
     "ds-sample-config02.xml": 76.24,
     "ds-sample-config03.xml": 83.51,
-    "ds-sample-config04.xml": 93.12
+    "ds-sample-config04.xml": 92.96
   },
   "Total rental cost": {
     "config100-long-high.xml": 777.14,
@@ -114,6 +114,6 @@
     "ds-sample-config01.xml": 0.75,
     "ds-sample-config02.xml": 601.6,
     "ds-sample-config03.xml": 1148.18,
-    "ds-sample-config04.xml": 677623.62
+    "ds-sample-config04.xml": 681114.0
   }
 }
