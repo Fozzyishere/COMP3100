@@ -16,11 +16,8 @@ public class client {
     private static int jobMemory;
     private static int jobDisk;
     private static int jobID;
-    private static int submitTime;
-    private static int estRuntime;
 
     // store server data
-    private static int nRecs = 0;
     private static ArrayList<server> serverList = new ArrayList<server>();
     private static String SCHDSeverType = "";
     private static int SCHDServerID;
@@ -29,17 +26,23 @@ public class client {
     public static void main(String[] args) throws Exception {
         client CLIENT = new client("localhost", 50000);
         CLIENT.handshake();
-        CLIENT.run();
+        CLIENT.schedule();
         CLIENT.quit();
         CLIENT.close();
     }
-
-    private void run() throws Exception {
-        if (!serverInput.equals("NONE")) {
+    // do the scheduling
+    private void schedule() throws Exception {
+        serverInput = initialJob;
+        while (!serverInput.equals("NONE")) {
             storeParams();
-            getCapable();
-            filterServers();
-            schedule();
+            if (initialJob.contains("JOBN")) {
+                getsAvail();
+                sendToServer(
+                        "SCHD " + jobID + " " + SCHDSeverType + " " + SCHDServerID);
+                receivedFromServer();
+            }
+            sendToServer("REDY");
+            receivedFromServer();
         }
     }
 
@@ -59,13 +62,11 @@ public class client {
         // Send AUTH
         sendToServer("AUTH " + System.getProperty("user.name"));
         receivedFromServer();
-
-        // Send REDY
-        sendToServer("REDY");
-        receivedFromServer();
     }
 
     private void storeParams() throws Exception {
+        sendToServer("REDY");
+        receivedFromServer();
         // save initial job for scheduling
         initialJob = serverInput;
         // store parameters from command (JOBN, JOBP, JCPL etc.)
@@ -76,17 +77,43 @@ public class client {
             jobMemory = Integer.parseInt(jobParams[5]);
             jobDisk = Integer.parseInt(jobParams[6]);
             jobID = Integer.parseInt(jobParams[2]);
-            submitTime = Integer.parseInt(jobParams[1]);
-            estRuntime = Integer.parseInt(jobParams[3]);
         }
     }
 
-    private void getCapable() throws Exception {
+    private void getsAvail() throws Exception {
+        int nRecs = 0;
+        // send get avail to get server info
+        sendToServer("GETS Avail " + jobCore + " " + jobMemory + " " + jobDisk);
+        receivedFromServer();
+        String[] DATAParams = serverInput.split(" ");
+        nRecs = Integer.parseInt(DATAParams[1]);
+        sendToServer("OK");
+        // no available server, fallback to capable
+        if (nRecs == 0) {
+            getsCapable();
+        } else {
+            for (int i = 0; i < nRecs; i++) {
+                receivedFromServer();
+                server currServer = new server(serverInput);
+                serverList.add(currServer);
+            }
+            sendToServer("OK");
+            receivedFromServer();
+            // find first server available for schedule
+            server firstServer = getFirstServer();
+            SCHDSeverType = firstServer.getServerType();
+            SCHDServerID = firstServer.getServerID();
+            serverList.clear();
+        }
+    }
+
+    private void getsCapable() throws Exception {
+        int nRecs = 0;
         // send get capable to get server info
         sendToServer("GETS Capable " + jobCore + " " + jobMemory + " " + jobDisk);
         receivedFromServer();
-        String[] DATAParams;
-        DATAParams = serverInput.split(" ");
+        String[] DATAParams = serverInput.split(" ");
+        System.out.println("before storing nRecs " + serverInput);
         nRecs = Integer.parseInt(DATAParams[1]);
         sendToServer("OK");
         // loop to store server data
@@ -97,6 +124,7 @@ public class client {
         }
         sendToServer("OK");
         receivedFromServer();
+        // filter servers using custom best fit conditions
         server server = filterServers();
         SCHDSeverType = server.getServerType();
         SCHDServerID = server.getServerID();
@@ -115,17 +143,18 @@ public class client {
             float minMemory = (float) currServer.getServerMemory() / jobMemory;
             float minDisk = (float) currServer.getServerDisk() / jobDisk;
             float fitness = minCore + minMemory + minDisk;
-
-            if (fitness < minFitness) {
-                minFitness = fitness;
-                minCoreCount = currServer.getServerCore();
-                returnServer = currServer;
-            } else if (fitness == minFitness) {
-                if (currServer.getServerCore() < minCoreCount) {
+            // fitness < 1 means server is invalid
+            if (fitness >= 1) {
+                if (fitness < minFitness) {
+                    minFitness = fitness;
                     minCoreCount = currServer.getServerCore();
                     returnServer = currServer;
-                } else if (currServer.getServerCore() == minCoreCount) {
-                    if (currServer.getServerID() < returnServer.getServerID()) {
+                } else if (fitness == minFitness) {
+                    if (currServer.getServerCore() < minCoreCount) {
+                        minCoreCount = currServer.getServerCore();
+                        returnServer = currServer;
+                    } else if (currServer.getServerCore() == minCoreCount
+                            && currServer.getServerID() < returnServer.getServerID()) {
                         returnServer = currServer;
                     }
                 }
@@ -134,20 +163,13 @@ public class client {
         return returnServer;
     }
 
-    // do the algorithm
-    private void schedule() throws Exception {
-        sendToServer("OK");
-        receivedFromServer();
-        serverInput = initialJob;
-        while (!serverInput.equals("NONE")) {
-            if (serverInput.contains("JOBN")) {
-                sendToServer(
-                        "SCHD " + jobID + " " + SCHDSeverType + " " + SCHDServerID);
-                receivedFromServer();
-            }
-            sendToServer("REDY");
-            receivedFromServer();
+    // get first server in the arraylist for immediate scheduling
+    public server getFirstServer() {
+        if (serverList.isEmpty()) {
+            return null;
         }
+        server firstServer = serverList.get(0);
+        return firstServer;
     }
 
     private void quit() throws Exception {
@@ -166,14 +188,14 @@ public class client {
     // print an store received message from server
     private void receivedFromServer() throws Exception {
         serverInput = din.readLine();
-        System.out.println("server said: " + serverInput);
+        System.out.println("server send: " + serverInput);
     }
 
     // send message to server
     private void sendToServer(String input) throws Exception {
         input = input + "\n";
         dout.write(input.getBytes());
-        System.out.println("sent to server: " + input);
+        System.out.println("server recieve: " + input);
         dout.flush();
     }
 }
