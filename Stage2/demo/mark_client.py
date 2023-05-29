@@ -157,10 +157,10 @@ def print_results(client_results: ClientResultDict, ref_results: RefResultDict, 
             )
             print(normal_row_template.format(*normal_row_vals))
 
-        averages = (
-                {algo: mean(res_dict[algo] for config, res_dict in ref_results[metric].items()) for algo in baseline} |
-                {"student": mean(res for config, res in client_results[metric].items() if res)}
-        )
+        averages = {
+                **{algo: mean(res_dict[algo] for res_dict in ref_results[metric].values()) for algo in baseline},
+                "student": mean(res for res in client_results[metric].values() if res)
+        }
 
         average_score = 0
         for algo in baseline:
@@ -203,7 +203,7 @@ def print_results(client_results: ClientResultDict, ref_results: RefResultDict, 
 
     if average_scores and all(score > 0 for score in average_scores.values()):
         mark_22 = 1
-    if objective_dict[objective] in baseline_scores:
+    if objective_dict[objective] in baseline_scores and mark_22 > 0:
         mark_23 = min(
             max_23, sum(1 for score in baseline_scores[objective_dict[objective]].values() if score == base_num))
 
